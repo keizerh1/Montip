@@ -416,7 +416,3 @@ const MONTIP_ABI = [
 ];
 
 const MONTIP_ADDRESS = "0xc38e071b01cf4e10A94E3Ab4aa32Ca1f1D590713";
-// Tu peux maintenant importer ce fichier dans ton index.html avec :
-// <script src="abi.js"></script>
-// Et ensuite tu peux instancier ton contrat dans ton script principal :
-// const contract = new ethers.Contract(MONTIP_ADDRESS, MONTIP_ABI, signer);
