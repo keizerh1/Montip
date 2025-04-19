@@ -3,153 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Montip - Monad Blockchain Tips</title>
+    <title>MonTip - Time-Locked Tips on Monad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js" type="application/javascript"></script>
     <style>
-        /* Custom CSS for elements that need more styling than Tailwind provides */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f7fa;
+        }
+        
         .gradient-bg {
-            background: linear-gradient(135deg, #6e8efb 0%, #a777e3 100%);
+            background: linear-gradient(135deg, #8e5ce6 0%, #3d1c80 100%);
         }
-        .wallet-address {
-            font-family: monospace;
+        
+        .card-bg {
+            background-color: #1a1b2f;
         }
-        .tab-active {
-            border-bottom: 3px solid #a777e3;
-            color: #a777e3;
-            font-weight: 600;
+        
+        .primary-btn {
+            background-color: #9f4eff;
         }
-        .progress-bar {
-            height: 8px;
-            border-radius: 4px;
-            background-color: #e5e7eb;
+        
+        .primary-btn:hover {
+            background-color: #8e3eff;
         }
-        .progress-fill {
-            height: 100%;
-            border-radius: 4px;
-            background-color: #a777e3;
-            transition: width 0.3s ease;
+        
+        .toast {
+            animation: fadeIn 0.3s ease-in-out;
         }
-        .notification {
-            transform: translateX(100%);
-            animation: slideIn 0.3s forwards;
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes slideIn {
-            to { transform: translateX(0); }
+        
+        .spinner {
+            animation: spin 1s linear infinite;
         }
-        .notification.hide {
-            animation: slideOut 0.3s forwards;
-        }
-        @keyframes slideOut {
-            to { transform: translateX(100%); }
-        }
-        .modal {
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        .modal.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        .contract-code {
-            font-family: monospace;
-            background-color: #1e293b;
-            color: #f8fafc;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            max-height: 60vh;
-            overflow-y: auto;
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- Header with wallet connection -->
+<body>
+    <!-- Header -->
     <header class="gradient-bg text-white shadow-lg">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-gift text-2xl"></i>
-                <h1 class="text-2xl font-bold">Montip</h1>
-                <span class="text-sm bg-white text-purple-600 px-2 py-1 rounded-full ml-2">Monad</span>
-            </div>
-            <div>
-                <button id="connectWalletBtn" class="bg-white text-purple-600 px-4 py-2 rounded-full font-medium hover:bg-gray-100 transition flex items-center space-x-2">
-                    <i class="fas fa-wallet"></i>
-                    <span>Connect Wallet</span>
-                </button>
-                <div id="walletConnected" class="hidden items-center space-x-3">
-                    <div class="flex items-center space-x-2 bg-white text-purple-600 px-3 py-1 rounded-full">
-                        <i class="fas fa-circle-check text-green-500"></i>
-                        <span id="walletAddress" class="wallet-address text-sm"></span>
-                    </div>
-                    <button id="disconnectWalletBtn" class="text-white hover:text-gray-200">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                    <i class="fas fa-dollar-sign text-purple-700 text-xl"></i>
                 </div>
+                <h1 class="text-2xl font-bold">MonTip</h1>
             </div>
+            <button id="connectWalletBtn" class="primary-btn text-white px-6 py-2 rounded-full flex items-center space-x-2">
+                <i class="fas fa-wallet"></i>
+                <span>Connect Wallet</span>
+            </button>
         </div>
     </header>
 
-    <!-- Wallet connection modal -->
-    <div id="walletModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg p-6 w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold">Connect Wallet</h3>
-                <button id="closeWalletModal" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Wallet & Contract Info -->
+        <div class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Wallet Info Card -->
+            <div class="card-bg text-white rounded-xl p-6 shadow-lg">
+                <h2 class="text-xl font-semibold mb-4">Wallet Information</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Status:</span>
+                        <span id="walletStatus" class="font-medium">Not connected</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Address:</span>
+                        <span id="walletAddress" class="font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Balance:</span>
+                        <span id="walletBalance" class="font-mono">- MON</span>
+                    </div>
+                </div>
             </div>
-            <div class="space-y-3">
-                <button class="wallet-option-btn flex items-center space-x-3 w-full p-3 border rounded-lg hover:bg-gray-50 transition" data-wallet="metamask">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" class="w-8 h-8">
-                    <span class="font-medium">MetaMask</span>
-                </button>
-                <button class="wallet-option-btn flex items-center space-x-3 w-full p-3 border rounded-lg hover:bg-gray-50 transition" data-wallet="phantom">
-                    <img src="https://phantom.app/favicon.ico" alt="Phantom" class="w-8 h-8">
-                    <span class="font-medium">Phantom (EVM)</span>
-                </button>
-                <button class="wallet-option-btn flex items-center space-x-3 w-full p-3 border rounded-lg hover:bg-gray-50 transition" data-wallet="walletconnect">
-                    <img src="https://altcoinsbox.com/wp-content/uploads/2023/04/wallet-connect-logo.png" alt="WalletConnect" class="w-8 h-8">
-                    <span class="font-medium">WalletConnect</span>
-                </button>
+            
+            <!-- Contract Info Card -->
+            <div class="card-bg text-white rounded-xl p-6 shadow-lg">
+                <h2 class="text-xl font-semibold mb-4">Contract Information</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Status:</span>
+                        <span id="contractStatus" class="font-medium">Not loaded</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Address:</span>
+                        <span id="contractAddress" class="font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Balance:</span>
+                        <span id="contractBalance" class="font-mono">- MON</span>
+                    </div>
+                </div>
+                <div class="mt-6 flex space-x-3">
+                    <button id="deployContractBtn" class="primary-btn text-white px-4 py-2 rounded-lg text-sm">
+                        Deploy New Contract
+                    </button>
+                    <div class="flex-1 relative">
+                        <input id="contractAddressInput" type="text" placeholder="Enter contract address" 
+                               class="w-full bg-gray-800 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <button id="loadContractBtn" class="absolute right-2 top-1/2 transform -translate-y-1/2 primary-btn text-white px-3 py-1 rounded text-xs">
+                            Load
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Main content -->
-    <main class="container mx-auto px-4 py-8">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Left column - Send tip form -->
-            <div class="lg:col-span-1 bg-white rounded-xl shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Send a Tip</h2>
-                <form id="sendTipForm" class="space-y-4">
+        <!-- Send Tip Section -->
+        <div class="card-bg text-white rounded-xl p-6 shadow-lg mb-8">
+            <h2 class="text-xl font-semibold mb-4">Send Locked Tip</h2>
+            <form id="sendTipForm" class="space-y-4">
+                <div>
+                    <label for="recipientAddress" class="block text-gray-400 mb-1">Recipient Address</label>
+                    <input type="text" id="recipientAddress" placeholder="0x..." 
+                           class="w-full bg-gray-800 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                
+                <div>
+                    <label for="tipMessage" class="block text-gray-400 mb-1">Message (Optional)</label>
+                    <textarea id="tipMessage" rows="2" placeholder="Add a message to your recipient..."
+                              class="w-full bg-gray-800 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                </div>
+                
+                <div>
+                    <label for="tipAmount" class="block text-gray-400 mb-1">Amount (MON)</label>
+                    <input type="number" id="tipAmount" min="0" step="0.001" placeholder="0.00" 
+                           class="w-full bg-gray-800 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="recipientAddress" class="block text-sm font-medium text-gray-700 mb-1">Recipient Address</label>
-                        <input type="text" id="recipientAddress" placeholder="0x..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
-                    </div>
-                    
-                    <div>
-                        <label for="message" class="block text-sm font-medium text-gray-700 mb-1">Message (Optional)</label>
-                        <textarea id="message" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
-                    </div>
-                    
-                    <div>
-                        <label for="tipAmount" class="block text-sm font-medium text-gray-700 mb-1">Tip Amount</label>
+                        <label for="unlockDelay" class="block text-gray-400 mb-1">Unlock Delay</label>
                         <div class="flex">
-                            <input type="number" id="tipAmount" min="0" step="0.001" placeholder="0.0" class="w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
-                            <select id="tokenSelect" class="px-3 py-2 border-t border-b border-r border-gray-300 rounded-r-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                <option value="ETH">ETH</option>
-                                <option value="MON">MON</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label for="unlockDelay" class="block text-sm font-medium text-gray-700 mb-1">Unlock Delay</label>
-                        <div class="flex space-x-2">
-                            <input type="number" id="unlockDelay" min="1" value="1" class="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
-                            <select id="unlockUnit" class="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <input type="number" id="unlockDelay" min="0" placeholder="0" 
+                                   class="flex-1 bg-gray-800 text-white px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <select id="unlockDelayUnit" class="bg-gray-700 text-white px-3 py-2 rounded-r-lg focus:outline-none">
                                 <option value="minutes">Minutes</option>
                                 <option value="hours">Hours</option>
                                 <option value="days" selected>Days</option>
@@ -157,207 +158,197 @@
                         </div>
                     </div>
                     
-                    <div class="flex items-center justify-between">
-                        <label for="progressiveUnlock" class="text-sm font-medium text-gray-700">Progressive Unlock</label>
-                        <div class="relative inline-block w-10 mr-2 align-middle select-none">
-                            <input type="checkbox" id="progressiveUnlock" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
-                            <label for="progressiveUnlock" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                    <div>
+                        <label class="block text-gray-400 mb-1">Unlock Mode</label>
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="unlockMode" value="instant" checked 
+                                       class="form-radio text-purple-500 focus:ring-purple-500">
+                                <span class="ml-2">Instant</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="unlockMode" value="progressive" 
+                                       class="form-radio text-purple-500 focus:ring-purple-500">
+                                <span class="ml-2">Progressive</span>
+                            </label>
                         </div>
                     </div>
-                    
-                    <div id="progressiveOptions" class="hidden space-y-2">
-                        <label for="dailyUnlockPercent" class="block text-sm font-medium text-gray-700">Daily Unlock Percentage</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="range" id="dailyUnlockPercent" min="1" max="100" value="10" class="w-full">
-                            <span id="percentValue" class="text-sm font-medium text-gray-700">10%</span>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="w-full gradient-bg text-white py-3 px-4 rounded-md font-medium hover:opacity-90 transition flex items-center justify-center space-x-2">
-                        <i class="fas fa-paper-plane"></i>
-                        <span>Send Tip</span>
+                </div>
+                
+                <div id="progressiveOptions" class="hidden">
+                    <label for="releaseRate" class="block text-gray-400 mb-1">Release Rate (% per day)</label>
+                    <input type="number" id="releaseRate" min="1" max="100" placeholder="10" 
+                           class="w-full bg-gray-800 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                
+                <button type="submit" class="primary-btn text-white px-6 py-3 rounded-lg w-full md:w-auto">
+                    Send Locked Tip
+                </button>
+            </form>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="card-bg text-white rounded-xl p-6 shadow-lg mb-8">
+            <h2 class="text-xl font-semibold mb-6">Statistics</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-gray-400 text-sm">Total Tips Sent</div>
+                    <div class="text-2xl font-bold">1,248</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-gray-400 text-sm">Total Tips Received</div>
+                    <div class="text-2xl font-bold">892</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-gray-400 text-sm">Total MON Sent</div>
+                    <div class="text-2xl font-bold">5,842.50</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-gray-400 text-sm">Total MON Received</div>
+                    <div class="text-2xl font-bold">3,721.75</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips Dashboard -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Tips Sent -->
+            <div class="card-bg text-white rounded-xl p-6 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Tips Sent</h2>
+                    <button class="text-gray-400 hover:text-white">
+                        <i class="fas fa-sync-alt"></i>
                     </button>
-                </form>
+                </div>
+                
+                <div class="mb-4 flex space-x-3">
+                    <input type="text" placeholder="Search by address or message" 
+                           class="flex-1 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <select class="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option>All Status</option>
+                        <option>Locked</option>
+                        <option>Unlocked</option>
+                        <option>Withdrawn</option>
+                    </select>
+                    <select class="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option>Newest First</option>
+                        <option>Oldest First</option>
+                        <option>Amount High to Low</option>
+                        <option>Amount Low to High</option>
+                    </select>
+                </div>
+                
+                <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    <!-- Sample Tip Card -->
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="font-medium">To: 0x7f3...4d2f</div>
+                                <div class="text-sm text-gray-400">2 days ago</div>
+                            </div>
+                            <div class="text-lg font-bold">10.5 MON</div>
+                        </div>
+                        <div class="text-sm mb-3">Thanks for your help with the project!</div>
+                        <div class="flex justify-between text-sm">
+                            <div>
+                                <span class="text-gray-400">Unlock:</span>
+                                <span>5 days (20% daily)</span>
+                            </div>
+                            <div class="px-2 py-1 bg-purple-900 text-purple-300 rounded text-xs">
+                                Unlocking (40%)
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Another Sample Tip Card -->
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="font-medium">To: 0x3a9...7b1c</div>
+                                <div class="text-sm text-gray-400">1 week ago</div>
+                            </div>
+                            <div class="text-lg font-bold">25 MON</div>
+                        </div>
+                        <div class="text-sm mb-3">For your amazing contribution to the community</div>
+                        <div class="flex justify-between text-sm">
+                            <div>
+                                <span class="text-gray-400">Unlock:</span>
+                                <span>Instant</span>
+                            </div>
+                            <div class="px-2 py-1 bg-green-900 text-green-300 rounded text-xs">
+                                Withdrawn
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            <!-- Right column - Tabs and charts -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- Stats cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white rounded-xl shadow-md p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-500">Total Sent</p>
-                                <p class="text-xl font-bold">1.42 ETH</p>
-                            </div>
-                            <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                                <i class="fas fa-arrow-up"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-500">Total Received</p>
-                                <p class="text-xl font-bold">0.85 ETH</p>
-                            </div>
-                            <div class="p-3 rounded-full bg-green-100 text-green-600">
-                                <i class="fas fa-arrow-down"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-500">Active Tips</p>
-                                <p class="text-xl font-bold">7</p>
-                            </div>
-                            <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                                <i class="fas fa-gift"></i>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Tips Received -->
+            <div class="card-bg text-white rounded-xl p-6 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Tips Received</h2>
+                    <button class="text-gray-400 hover:text-white">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                 </div>
                 
-                <!-- Charts -->
-                <div class="bg-white rounded-xl shadow-md p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold">Tips Timeline</h2>
-                        <div class="flex space-x-2">
-                            <button class="text-xs px-2 py-1 rounded bg-gray-100">7D</button>
-                            <button class="text-xs px-2 py-1 rounded bg-purple-100 text-purple-600">30D</button>
-                            <button class="text-xs px-2 py-1 rounded bg-gray-100">90D</button>
-                        </div>
-                    </div>
-                    <canvas id="timelineChart" height="200"></canvas>
+                <div class="mb-4 flex space-x-3">
+                    <input type="text" placeholder="Search by address or message" 
+                           class="flex-1 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <select class="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option>All Status</option>
+                        <option>Locked</option>
+                        <option>Unlocked</option>
+                        <option>Withdrawn</option>
+                    </select>
+                    <select class="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option>Newest First</option>
+                        <option>Oldest First</option>
+                        <option>Amount High to Low</option>
+                        <option>Amount Low to High</option>
+                    </select>
                 </div>
                 
-                <!-- Tabs for sent/received tips -->
-                <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                    <div class="border-b border-gray-200">
-                        <nav class="flex -mb-px">
-                            <button id="sentTab" class="tab-button py-4 px-6 text-center border-b-2 font-medium text-sm tab-active">
-                                Sent Tips
-                            </button>
-                            <button id="receivedTab" class="tab-button py-4 px-6 text-center border-b-2 font-medium text-sm">
-                                Received Tips
-                            </button>
-                            <button id="contractTab" class="tab-button py-4 px-6 text-center border-b-2 font-medium text-sm ml-auto">
-                                <i class="fas fa-file-contract"></i> View Contract
-                            </button>
-                        </nav>
-                    </div>
-                    
-                    <!-- Tab content -->
-                    <div id="sentTips" class="p-4">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recipient</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                                    <i class="fas fa-user text-purple-600"></i>
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">0x7f3...4d6f</div>
-                                                    <div class="text-sm text-gray-500">Thanks for the help!</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">0.5 ETH</div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                Partially Unlocked (40%)
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            2 days ago
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                                    <i class="fas fa-user text-purple-600"></i>
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">0x3a9...7b2c</div>
-                                                    <div class="text-sm text-gray-500">Great content!</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">1.2 MON</div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                Withdrawn
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            1 week ago
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                    <!-- Sample Tip Card -->
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="font-medium">From: 0x5b2...9e1f</div>
+                                <div class="text-sm text-gray-400">3 days ago</div>
+                            </div>
+                            <div class="text-lg font-bold">7.2 MON</div>
+                        </div>
+                        <div class="text-sm mb-3">Great work on the documentation!</div>
+                        <div class="flex justify-between text-sm">
+                            <div>
+                                <span class="text-gray-400">Unlock:</span>
+                                <span>7 days (10% daily)</span>
+                            </div>
+                            <div class="px-2 py-1 bg-yellow-900 text-yellow-300 rounded text-xs">
+                                Locked (30%)
+                            </div>
                         </div>
                     </div>
                     
-                    <div id="receivedTips" class="hidden p-4">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sender</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                                    <i class="fas fa-user text-purple-600"></i>
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">0x5b2...9e1f</div>
-                                                    <div class="text-sm text-gray-500">For your amazing work</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">0.3 ETH</div>
-                                            <div class="text-xs text-gray-500">0.12 ETH available</div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="progress-bar w-full">
-                                                <div class="progress-fill" style="width: 40%"></div>
-                                            </div>
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 mt-1">
-                                                Partially Unlocked (40%)
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <button class="text-sm text-purple-600 hover:text-purple-800 font-medium">
-                                                Withdraw Available
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <!-- Another Sample Tip Card -->
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="font-medium">From: 0x1c8...3d4a</div>
+                                <div class="text-sm text-gray-400">2 weeks ago</div>
+                            </div>
+                            <div class="text-lg font-bold">15 MON</div>
+                        </div>
+                        <div class="text-sm mb-3">For the bug fix you provided</div>
+                        <div class="flex justify-between text-sm">
+                            <div>
+                                <span class="text-gray-400">Unlock:</span>
+                                <span>Instant</span>
+                            </div>
+                            <div class="px-2 py-1 bg-green-900 text-green-300 rounded text-xs">
+                                Withdrawn
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -365,398 +356,262 @@
         </div>
     </main>
 
-    <!-- Smart contract modal -->
-    <div id="contractModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-screen overflow-hidden">
-            <div class="flex justify-between items-center border-b border-gray-200 p-4">
-                <h3 class="text-xl font-bold">Montip Smart Contract</h3>
-                <div class="flex space-x-2">
-                    <button id="copyContractBtn" class="px-3 py-1 bg-purple-100 text-purple-600 rounded-md text-sm font-medium hover:bg-purple-200">
-                        <i class="fas fa-copy mr-1"></i> Copy
-                    </button>
-                    <button id="closeContractModal" class="px-3 py-1 bg-gray-100 text-gray-600 rounded-md text-sm font-medium hover:bg-gray-200">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="contract-code p-4">
-                <pre>// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 space-y-2 z-50"></div>
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-contract Montip is ReentrancyGuard {
-    struct Tip {
-        address sender;
-        address recipient;
-        address token;
-        uint256 amount;
-        uint256 unlockTime;
-        uint256 claimedAmount;
-        uint256 dailyUnlockPercent;
-        bool isProgressive;
-    }
-    
-    mapping(uint256 => Tip) public tips;
-    uint256 public tipCount;
-    
-    event TipSent(
-        uint256 indexed tipId,
-        address indexed sender,
-        address indexed recipient,
-        address token,
-        uint256 amount,
-        uint256 unlockTime,
-        bool isProgressive,
-        uint256 dailyUnlockPercent
-    );
-    
-    event TipWithdrawn(
-        uint256 indexed tipId,
-        address indexed recipient,
-        uint256 amount
-    );
-    
-    function sendTip(
-        address recipient,
-        address token,
-        uint256 amount,
-        uint256 unlockDelay,
-        bool isProgressive,
-        uint256 dailyUnlockPercent
-    ) external payable nonReentrant {
-        require(recipient != address(0), "Invalid recipient");
-        require(amount > 0, "Amount must be positive");
-        
-        uint256 unlockTime = block.timestamp + unlockDelay;
-        
-        if (token == address(0)) {
-            require(msg.value == amount, "ETH amount mismatch");
-        } else {
-            IERC20(token).transferFrom(msg.sender, address(this), amount);
-        }
-        
-        if (isProgressive) {
-            require(dailyUnlockPercent > 0 && dailyUnlockPercent <= 100, "Invalid unlock percent");
-        }
-        
-        tipCount++;
-        tips[tipCount] = Tip({
-            sender: msg.sender,
-            recipient: recipient,
-            token: token,
-            amount: amount,
-            unlockTime: unlockTime,
-            claimedAmount: 0,
-            dailyUnlockPercent: dailyUnlockPercent,
-            isProgressive: isProgressive
-        });
-        
-        emit TipSent(
-            tipCount,
-            msg.sender,
-            recipient,
-            token,
-            amount,
-            unlockTime,
-            isProgressive,
-            dailyUnlockPercent
-        );
-    }
-    
-    function withdrawTip(uint256 tipId) external nonReentrant {
-        Tip storage tip = tips[tipId];
-        require(tip.recipient == msg.sender, "Not the recipient");
-        require(block.timestamp >= tip.unlockTime, "Tip is still locked");
-        
-        uint256 availableAmount;
-        if (tip.isProgressive) {
-            uint256 daysPassed = (block.timestamp - tip.unlockTime) / 1 days;
-            uint256 maxClaimable = tip.amount * (tip.dailyUnlockPercent * daysPassed) / 100;
-            availableAmount = maxClaimable - tip.claimedAmount;
-        } else {
-            availableAmount = tip.amount - tip.claimedAmount;
-        }
-        
-        require(availableAmount > 0, "No funds available to withdraw");
-        
-        tip.claimedAmount += availableAmount;
-        
-        if (tip.token == address(0)) {
-            payable(msg.sender).transfer(availableAmount);
-        } else {
-            IERC20(tip.token).transfer(msg.sender, availableAmount);
-        }
-        
-        emit TipWithdrawn(tipId, msg.sender, availableAmount);
-    }
-    
-    function getAvailableAmount(uint256 tipId) public view returns (uint256) {
-        Tip storage tip = tips[tipId];
-        if (block.timestamp < tip.unlockTime) return 0;
-        
-        if (tip.isProgressive) {
-            uint256 daysPassed = (block.timestamp - tip.unlockTime) / 1 days;
-            uint256 maxClaimable = tip.amount * (tip.dailyUnlockPercent * daysPassed) / 100;
-            return maxClaimable - tip.claimedAmount;
-        } else {
-            return tip.amount - tip.claimedAmount;
-        }
-    }
-}</pre>
-            </div>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-6 rounded-xl text-white text-center max-w-sm">
+            <div class="spinner inline-block w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full mb-4"></div>
+            <h3 class="text-lg font-semibold mb-2">Processing Transaction</h3>
+            <p class="text-gray-400">Please wait while we process your request...</p>
         </div>
     </div>
 
-    <!-- Notification system -->
-    <div id="notifications" class="fixed bottom-4 right-4 space-y-2 z-50"></div>
-
     <script>
-        // DOM elements
+        // DOM Elements
         const connectWalletBtn = document.getElementById('connectWalletBtn');
-        const walletConnected = document.getElementById('walletConnected');
+        const walletStatus = document.getElementById('walletStatus');
         const walletAddress = document.getElementById('walletAddress');
-        const disconnectWalletBtn = document.getElementById('disconnectWalletBtn');
-        const walletModal = document.getElementById('walletModal');
-        const closeWalletModal = document.getElementById('closeWalletModal');
-        const walletOptionBtns = document.querySelectorAll('.wallet-option-btn');
-        
+        const walletBalance = document.getElementById('walletBalance');
+        const contractStatus = document.getElementById('contractStatus');
+        const contractAddress = document.getElementById('contractAddress');
+        const contractBalance = document.getElementById('contractBalance');
+        const deployContractBtn = document.getElementById('deployContractBtn');
+        const contractAddressInput = document.getElementById('contractAddressInput');
+        const loadContractBtn = document.getElementById('loadContractBtn');
         const sendTipForm = document.getElementById('sendTipForm');
-        const progressiveUnlock = document.getElementById('progressiveUnlock');
+        const unlockModeRadios = document.getElementsByName('unlockMode');
         const progressiveOptions = document.getElementById('progressiveOptions');
-        const dailyUnlockPercent = document.getElementById('dailyUnlockPercent');
-        const percentValue = document.getElementById('percentValue');
+        const toastContainer = document.getElementById('toastContainer');
+        const loadingOverlay = document.getElementById('loadingOverlay');
         
-        const sentTab = document.getElementById('sentTab');
-        const receivedTab = document.getElementById('receivedTab');
-        const contractTab = document.getElementById('contractTab');
-        const sentTips = document.getElementById('sentTips');
-        const receivedTips = document.getElementById('receivedTips');
+        // State
+        let provider;
+        let signer;
+        let contract;
+        let isConnected = false;
+        let contractLoaded = false;
         
-        const contractModal = document.getElementById('contractModal');
-        const closeContractModal = document.getElementById('closeContractModal');
-        const copyContractBtn = document.getElementById('copyContractBtn');
+        // Event Listeners
+        connectWalletBtn.addEventListener('click', connectWallet);
+        deployContractBtn.addEventListener('click', deployContract);
+        loadContractBtn.addEventListener('click', loadContract);
+        sendTipForm.addEventListener('submit', sendTip);
         
-        // Toggle switch styling
-        document.addEventListener('DOMContentLoaded', function() {
-            // Progressive unlock toggle
-            progressiveUnlock.addEventListener('change', function() {
-                if(this.checked) {
-                    progressiveOptions.classList.remove('hidden');
+        // Toggle progressive options based on unlock mode selection
+        unlockModeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                progressiveOptions.classList.toggle('hidden', this.value !== 'progressive');
+            });
+        });
+        
+        // Wallet Connection
+        async function connectWallet() {
+            try {
+                showLoading();
+                
+                // Check if MetaMask or Phantom is installed
+                if (window.ethereum) {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    
+                    // Request account access
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    
+                    if (accounts.length > 0) {
+                        signer = provider.getSigner();
+                        const address = await signer.getAddress();
+                        const balance = await provider.getBalance(address);
+                        
+                        // Update UI
+                        walletStatus.textContent = 'Connected';
+                        walletAddress.textContent = shortenAddress(address);
+                        walletBalance.textContent = `${ethers.utils.formatEther(balance)} MON`;
+                        
+                        connectWalletBtn.innerHTML = `<i class="fas fa-wallet"></i><span>${shortenAddress(address)}</span>`;
+                        isConnected = true;
+                        
+                        showToast('Wallet connected successfully!', 'success');
+                    }
                 } else {
-                    progressiveOptions.classList.add('hidden');
+                    showToast('Please install MetaMask or Phantom wallet!', 'error');
                 }
-            });
-            
-            // Daily unlock percentage slider
-            dailyUnlockPercent.addEventListener('input', function() {
-                percentValue.textContent = `${this.value}%`;
-            });
-            
-            // Initialize charts
-            initCharts();
-        });
-        
-        // Wallet connection logic
-        connectWalletBtn.addEventListener('click', () => {
-            walletModal.classList.remove('hidden');
-        });
-        
-        closeWalletModal.addEventListener('click', () => {
-            walletModal.classList.add('hidden');
-        });
-        
-        walletOptionBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const wallet = btn.getAttribute('data-wallet');
-                // Simulate wallet connection
-                simulateWalletConnect(wallet);
-            });
-        });
-        
-        disconnectWalletBtn.addEventListener('click', () => {
-            // Simulate wallet disconnection
-            connectWalletBtn.classList.remove('hidden');
-            walletConnected.classList.add('hidden');
-            showNotification('Wallet disconnected', 'info');
-        });
-        
-        function simulateWalletConnect(wallet) {
-            // In a real app, this would connect to the actual wallet
-            const address = '0x7f3...' + Math.floor(Math.random() * 10000).toString(16);
-            
-            connectWalletBtn.classList.add('hidden');
-            walletConnected.classList.remove('hidden');
-            walletAddress.textContent = address;
-            walletModal.classList.add('hidden');
-            
-            showNotification(`${wallet.charAt(0).toUpperCase() + wallet.slice(1)} wallet connected`, 'success');
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                showToast('Failed to connect wallet', 'error');
+            } finally {
+                hideLoading();
+            }
         }
         
-        // Form submission
-        sendTipForm.addEventListener('submit', function(e) {
+        // Contract Deployment
+        async function deployContract() {
+            if (!isConnected) {
+                showToast('Please connect your wallet first', 'error');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                // In a real implementation, you would deploy the actual contract here
+                // This is a mock implementation for UI purposes
+                const mockContractAddress = '0x' + Math.random().toString(16).substr(2, 40);
+                
+                // Update UI
+                contractStatus.textContent = 'Deployed';
+                contractAddress.textContent = shortenAddress(mockContractAddress);
+                contractBalance.textContent = '0 MON';
+                contractLoaded = true;
+                
+                showToast('Contract deployed successfully!', 'success');
+            } catch (error) {
+                console.error('Error deploying contract:', error);
+                showToast('Failed to deploy contract', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Load Existing Contract
+        async function loadContract() {
+            const address = contractAddressInput.value.trim();
+            
+            if (!address) {
+                showToast('Please enter a contract address', 'error');
+                return;
+            }
+            
+            if (!ethers.utils.isAddress(address)) {
+                showToast('Invalid contract address', 'error');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                // In a real implementation, you would load the actual contract here
+                // This is a mock implementation for UI purposes
+                
+                // Update UI
+                contractStatus.textContent = 'Loaded';
+                contractAddress.textContent = shortenAddress(address);
+                contractBalance.textContent = '0 MON';
+                contractLoaded = true;
+                
+                showToast('Contract loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error loading contract:', error);
+                showToast('Failed to load contract', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Send Tip
+        async function sendTip(e) {
             e.preventDefault();
             
-            const recipient = document.getElementById('recipientAddress').value;
-            const amount = document.getElementById('tipAmount').value;
-            const token = document.getElementById('tokenSelect').value;
-            const message = document.getElementById('message').value;
-            const delay = document.getElementById('unlockDelay').value;
-            const unit = document.getElementById('unlockUnit').value;
-            const isProgressive = document.getElementById('progressiveUnlock').checked;
-            const percent = isProgressive ? document.getElementById('dailyUnlockPercent').value : 0;
-            
-            // Validate recipient address
-            if (!recipient.startsWith('0x') || recipient.length !== 42) {
-                showNotification('Invalid recipient address', 'error');
+            if (!isConnected) {
+                showToast('Please connect your wallet first', 'error');
                 return;
             }
             
-            // Validate amount
-            if (parseFloat(amount) <= 0) {
-                showNotification('Tip amount must be positive', 'error');
+            if (!contractLoaded) {
+                showToast('Please deploy or load a contract first', 'error');
                 return;
             }
             
-            // In a real app, this would call the smart contract
-            console.log('Sending tip:', {
-                recipient,
-                amount,
-                token,
-                message,
-                delay,
-                unit,
-                isProgressive,
-                percent
-            });
+            const recipientAddress = document.getElementById('recipientAddress').value.trim();
+            const tipAmount = document.getElementById('tipAmount').value;
+            const unlockDelay = document.getElementById('unlockDelay').value;
+            const unlockDelayUnit = document.getElementById('unlockDelayUnit').value;
+            const unlockMode = document.querySelector('input[name="unlockMode"]:checked').value;
+            const releaseRate = unlockMode === 'progressive' ? document.getElementById('releaseRate').value : null;
+            const message = document.getElementById('tipMessage').value;
             
-            showNotification(`Tip of ${amount} ${token} sent successfully!`, 'success');
-            this.reset();
-        });
-        
-        // Tab switching
-        const tabButtons = [sentTab, receivedTab, contractTab];
-        const tabContents = [sentTips, receivedTips];
-        
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // Handle contract tab separately
-                if (button === contractTab) {
-                    contractModal.classList.toggle('active');
-                    return;
-                }
+            // Validate inputs
+            if (!ethers.utils.isAddress(recipientAddress)) {
+                showToast('Invalid recipient address', 'error');
+                return;
+            }
+            
+            if (!tipAmount || parseFloat(tipAmount) <= 0) {
+                showToast('Please enter a valid amount', 'error');
+                return;
+            }
+            
+            if (unlockMode === 'progressive' && (!releaseRate || parseInt(releaseRate) <= 0 || parseInt(releaseRate) > 100)) {
+                showToast('Please enter a valid release rate (1-100%)', 'error');
+                return;
+            }
+            
+            try {
+                showLoading();
                 
-                // Update tab buttons
-                tabButtons.forEach(btn => btn.classList.remove('tab-active'));
-                button.classList.add('tab-active');
+                // In a real implementation, you would call the contract's sendTip function here
+                // This is a mock implementation for UI purposes
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 
-                // Update tab contents
-                tabContents.forEach(content => content.classList.add('hidden'));
+                showToast('Tip sent successfully!', 'success');
                 
-                if (button === sentTab) {
-                    sentTips.classList.remove('hidden');
-                } else if (button === receivedTab) {
-                    receivedTips.classList.remove('hidden');
-                }
-            });
-        });
-        
-        // Contract modal
-        closeContractModal.addEventListener('click', () => {
-            contractModal.classList.remove('active');
-        });
-        
-        copyContractBtn.addEventListener('click', () => {
-            const code = document.querySelector('.contract-code').textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                showNotification('Contract code copied to clipboard!', 'success');
-            });
-        });
-        
-        // Notification system
-        function showNotification(message, type) {
-            const notifications = document.getElementById('notifications');
-            const notification = document.createElement('div');
-            
-            notification.className = `notification px-4 py-3 rounded-md shadow-lg flex items-center justify-between ${
-                type === 'error' ? 'bg-red-100 text-red-700' : 
-                type === 'success' ? 'bg-green-100 text-green-700' :
-                'bg-blue-100 text-blue-700'
-            }`;
-            
-            notification.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas ${
-                        type === 'error' ? 'fa-exclamation-circle' : 
-                        type === 'success' ? 'fa-check-circle' : 'fa-info-circle'
-                    } mr-2"></i>
-                    <span>${message}</span>
-                </div>
-                <button class="ml-4 text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            
-            notifications.appendChild(notification);
-            
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                notification.classList.add('hide');
-                setTimeout(() => notification.remove(), 300);
-            }, 5000);
-            
-            // Manual close
-            notification.querySelector('button').addEventListener('click', () => {
-                notification.classList.add('hide');
-                setTimeout(() => notification.remove(), 300);
-            });
+                // Reset form
+                sendTipForm.reset();
+                progressiveOptions.classList.add('hidden');
+            } catch (error) {
+                console.error('Error sending tip:', error);
+                showToast('Failed to send tip', 'error');
+            } finally {
+                hideLoading();
+            }
         }
         
-        // Initialize charts
-        function initCharts() {
-            const ctx = document.getElementById('timelineChart').getContext('2d');
-            const chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-                    datasets: [
-                        {
-                            label: 'Sent Tips',
-                            data: [12, 19, 3, 5, 2, 3, 15],
-                            borderColor: '#6e8efb',
-                            backgroundColor: 'rgba(110, 142, 251, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        },
-                        {
-                            label: 'Received Tips',
-                            data: [5, 10, 6, 8, 12, 7, 9],
-                            borderColor: '#a777e3',
-                            backgroundColor: 'rgba(167, 119, 227, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
+        // Helper Functions
+        function shortenAddress(address) {
+            if (!address) return '-';
+            return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast px-4 py-3 rounded-lg shadow-lg flex items-center ${getToastColor(type)}`;
+            toast.innerHTML = `
+                <i class="fas ${getToastIcon(type)} mr-2"></i>
+                <span>${message}</span>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+        
+        function getToastColor(type) {
+            switch (type) {
+                case 'success': return 'bg-green-800 text-green-100';
+                case 'error': return 'bg-red-800 text-red-100';
+                case 'warning': return 'bg-yellow-800 text-yellow-100';
+                default: return 'bg-blue-800 text-blue-100';
+            }
+        }
+        
+        function getToastIcon(type) {
+            switch (type) {
+                case 'success': return 'fa-check-circle';
+                case 'error': return 'fa-exclamation-circle';
+                case 'warning': return 'fa-exclamation-triangle';
+                default: return 'fa-info-circle';
+            }
+        }
+        
+        function showLoading() {
+            loadingOverlay.classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
         }
     </script>
 </body>
