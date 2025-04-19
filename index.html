@@ -6,7 +6,8 @@
     <title>MonTip - Time-Locked Tips on Monad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdn.ethers.org/lib/ethers-5.7.umd.min.js" type="application/javascript"></script>
+    <!-- Correction de la source CDN pour ethers.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" integrity="sha512-FbrKJY0nPHdJhx/R5VVXZFTiUYbEbr/nS09CYGB49Xd0DR/XStGuZG57VdIr0iVMV0SMH1ld5yfEWHy+HzZSxg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <!-- Ajout de l'import du fichier ABI -->
     <script src="abi.js"></script>
     <style>
@@ -63,7 +64,244 @@
                 <h1 class="text-2xl font-bold">MonTip</h1>
             </div>
             <button id="connectWalletBtn" class="primary-btn text-white px-6 py-2 rounded-full flex items-center space-x-2">
-                <i class="fas fa-wallet"></i>
+                <i class="fas fa-wallet"></i><span>${shortenAddress(address)}</span>`;
+                        isConnected = true;
+                        
+                        // Auto-load the contract
+                        contractAddressInput.value = MONTIP_ADDRESS;
+                        await loadContract();
+                        
+                        showToast('Wallet connected successfully!', 'success');
+                    }
+                } else {
+                    showToast('Please install MetaMask or a compatible wallet!', 'error');
+                }
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                showToast('Failed to connect wallet: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Contract Deployment - Disabled since we're using an already deployed contract
+        async function deployContract() {
+            showToast('Using existing deployed contract. Deployment function disabled.', 'info');
+            // Load the existing contract instead
+            contractAddressInput.value = MONTIP_ADDRESS;
+            await loadContract();
+        }
+        
+        // Load Existing Contract
+        async function loadContract() {
+            let address = contractAddressInput.value.trim();
+            
+            if (!address) {
+                address = MONTIP_ADDRESS;
+                contractAddressInput.value = address;
+            }
+            
+            if (!ethers.utils.isAddress(address)) {
+                showToast('Invalid contract address', 'error');
+                return;
+            }
+            
+            if (!isConnected) {
+                showToast('Please connect your wallet first', 'error');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                // Create contract instance using ABI and address
+                contract = new ethers.Contract(address, MONTIP_ABI, signer);
+                
+                // Verify the contract exists
+                try {
+                    const nextTipId = await contract.nextTipId();
+                    console.log('Next Tip ID:', nextTipId.toString());
+                } catch (error) {
+                    throw new Error('Unable to interact with contract. Make sure it exists at this address.');
+                }
+                
+                // Update UI
+                contractStatus.textContent = 'Loaded';
+                contractAddress.textContent = shortenAddress(address);
+                
+                // Get and display contract balance
+                await updateContractBalance(address);
+                
+                contractLoaded = true;
+                
+                showToast('Contract loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error loading contract:', error);
+                showToast('Failed to load contract: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Update Contract Balance
+        async function updateContractBalance(address) {
+            try {
+                const balance = await provider.getBalance(address);
+                contractBalance.textContent = `${ethers.utils.formatEther(balance)} MON`;
+            } catch (error) {
+                console.error('Error fetching contract balance:', error);
+                contractBalance.textContent = 'Error';
+            }
+        }
+        
+        // Send Tip
+        async function sendTip(e) {
+            e.preventDefault();
+            
+            if (!isConnected) {
+                showToast('Please connect your wallet first', 'error');
+                return;
+            }
+            
+            if (!contractLoaded) {
+                showToast('Please load the contract first', 'error');
+                return;
+            }
+            
+            const recipientAddress = document.getElementById('recipientAddress').value.trim();
+            const tipAmount = document.getElementById('tipAmount').value;
+            const unlockDelay = document.getElementById('unlockDelay').value;
+            const unlockDelayUnit = document.getElementById('unlockDelayUnit').value;
+            const unlockMode = document.querySelector('input[name="unlockMode"]:checked').value;
+            const releaseRate = unlockMode === 'progressive' ? document.getElementById('releaseRate').value : 0;
+            const message = document.getElementById('tipMessage').value.trim();
+            
+            // Validate inputs
+            if (!ethers.utils.isAddress(recipientAddress)) {
+                showToast('Invalid recipient address', 'error');
+                return;
+            }
+            
+            if (!tipAmount || parseFloat(tipAmount) <= 0) {
+                showToast('Please enter a valid amount', 'error');
+                return;
+            }
+            
+            if (!unlockDelay || parseInt(unlockDelay) <= 0) {
+                showToast('Please enter a valid unlock delay', 'error');
+                return;
+            }
+            
+            if (unlockMode === 'progressive' && (!releaseRate || parseInt(releaseRate) <= 0 || parseInt(releaseRate) > 100)) {
+                showToast('Please enter a valid release rate (1-100%)', 'error');
+                return;
+            }
+            
+            try {
+                showLoading();
+                
+                // Convert amount to wei
+                const amountInWei = ethers.utils.parseEther(tipAmount);
+                
+                // Calculate unlock delay in seconds
+                let delayInSeconds;
+                switch (unlockDelayUnit) {
+                    case 'minutes':
+                        delayInSeconds = parseInt(unlockDelay) * 60;
+                        break;
+                    case 'hours':
+                        delayInSeconds = parseInt(unlockDelay) * 60 * 60;
+                        break;
+                    case 'days':
+                        delayInSeconds = parseInt(unlockDelay) * 24 * 60 * 60;
+                        break;
+                    default:
+                        delayInSeconds = parseInt(unlockDelay) * 24 * 60 * 60; // Default to days
+                }
+                
+                // Call the contract function
+                showToast('Sending tip to the blockchain...', 'info');
+                
+                const tx = await contract.sendTipLocked(
+                    recipientAddress,
+                    message,
+                    delayInSeconds,
+                    unlockMode === 'progressive',
+                    unlockMode === 'progressive' ? parseInt(releaseRate) : 0,
+                    { value: amountInWei }
+                );
+                
+                // Wait for transaction to be mined
+                showToast('Waiting for transaction confirmation...', 'info');
+                await tx.wait();
+                
+                // Update contract balance after sending tip
+                await updateContractBalance(contract.address);
+                
+                showToast('Tip sent successfully!', 'success');
+                
+                // Reset form
+                sendTipForm.reset();
+                progressiveOptions.classList.add('hidden');
+            } catch (error) {
+                console.error('Error sending tip:', error);
+                showToast('Failed to send tip: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Helper Functions
+        function shortenAddress(address) {
+            if (!address) return '-';
+            return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast px-4 py-3 rounded-lg shadow-lg flex items-center ${getToastColor(type)}`;
+            toast.innerHTML = `
+                <i class="fas ${getToastIcon(type)} mr-2"></i>
+                <span>${message}</span>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+        
+        function getToastColor(type) {
+            switch (type) {
+                case 'success': return 'bg-green-800 text-green-100';
+                case 'error': return 'bg-red-800 text-red-100';
+                case 'warning': return 'bg-yellow-800 text-yellow-100';
+                default: return 'bg-blue-800 text-blue-100';
+            }
+        }
+        
+        // Correction de la fonction getToastIcon qui avait une erreur de syntaxe
+        function getToastIcon(type) {
+            switch (type) {
+                case 'success': return 'fa-check-circle';
+                case 'error': return 'fa-exclamation-circle';
+                case 'warning': return 'fa-exclamation-triangle';
+                default: return 'fa-info-circle';
+            }
+        }
+        
+        function showLoading() {
+            loadingOverlay.classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            loadingOverlay.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>"></i>
                 <span>Connect Wallet</span>
             </button>
         </div>
@@ -430,241 +668,4 @@
                         walletAddress.textContent = shortenAddress(address);
                         walletBalance.textContent = `${ethers.utils.formatEther(balance)} MON`;
                         
-                        connectWalletBtn.innerHTML = `<i class="fas fa-wallet"></i><span>${shortenAddress(address)}</span>`;
-                        isConnected = true;
-                        
-                        // Auto-load the contract
-                        contractAddressInput.value = MONTIP_ADDRESS;
-                        await loadContract();
-                        
-                        showToast('Wallet connected successfully!', 'success');
-                    }
-                } else {
-                    showToast('Please install MetaMask or a compatible wallet!', 'error');
-                }
-            } catch (error) {
-                console.error('Error connecting wallet:', error);
-                showToast('Failed to connect wallet: ' + error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        // Contract Deployment - Disabled since we're using an already deployed contract
-        async function deployContract() {
-            showToast('Using existing deployed contract. Deployment function disabled.', 'info');
-            // Load the existing contract instead
-            contractAddressInput.value = MONTIP_ADDRESS;
-            await loadContract();
-        }
-        
-        // Load Existing Contract
-        async function loadContract() {
-            let address = contractAddressInput.value.trim();
-            
-            if (!address) {
-                address = MONTIP_ADDRESS;
-                contractAddressInput.value = address;
-            }
-            
-            if (!ethers.utils.isAddress(address)) {
-                showToast('Invalid contract address', 'error');
-                return;
-            }
-            
-            if (!isConnected) {
-                showToast('Please connect your wallet first', 'error');
-                return;
-            }
-            
-            try {
-                showLoading();
-                
-                // Create contract instance using ABI and address
-                contract = new ethers.Contract(address, MONTIP_ABI, signer);
-                
-                // Verify the contract exists
-                try {
-                    const nextTipId = await contract.nextTipId();
-                    console.log('Next Tip ID:', nextTipId.toString());
-                } catch (error) {
-                    throw new Error('Unable to interact with contract. Make sure it exists at this address.');
-                }
-                
-                // Update UI
-                contractStatus.textContent = 'Loaded';
-                contractAddress.textContent = shortenAddress(address);
-                
-                // Get and display contract balance
-                await updateContractBalance(address);
-                
-                contractLoaded = true;
-                
-                showToast('Contract loaded successfully!', 'success');
-            } catch (error) {
-                console.error('Error loading contract:', error);
-                showToast('Failed to load contract: ' + error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        // Update Contract Balance
-        async function updateContractBalance(address) {
-            try {
-                const balance = await provider.getBalance(address);
-                contractBalance.textContent = `${ethers.utils.formatEther(balance)} MON`;
-            } catch (error) {
-                console.error('Error fetching contract balance:', error);
-                contractBalance.textContent = 'Error';
-            }
-        }
-        
-        // Send Tip
-        async function sendTip(e) {
-            e.preventDefault();
-            
-            if (!isConnected) {
-                showToast('Please connect your wallet first', 'error');
-                return;
-            }
-            
-            if (!contractLoaded) {
-                showToast('Please load the contract first', 'error');
-                return;
-            }
-            
-            const recipientAddress = document.getElementById('recipientAddress').value.trim();
-            const tipAmount = document.getElementById('tipAmount').value;
-            const unlockDelay = document.getElementById('unlockDelay').value;
-            const unlockDelayUnit = document.getElementById('unlockDelayUnit').value;
-            const unlockMode = document.querySelector('input[name="unlockMode"]:checked').value;
-            const releaseRate = unlockMode === 'progressive' ? document.getElementById('releaseRate').value : 0;
-            const message = document.getElementById('tipMessage').value.trim();
-            
-            // Validate inputs
-            if (!ethers.utils.isAddress(recipientAddress)) {
-                showToast('Invalid recipient address', 'error');
-                return;
-            }
-            
-            if (!tipAmount || parseFloat(tipAmount) <= 0) {
-                showToast('Please enter a valid amount', 'error');
-                return;
-            }
-            
-            if (!unlockDelay || parseInt(unlockDelay) <= 0) {
-                showToast('Please enter a valid unlock delay', 'error');
-                return;
-            }
-            
-            if (unlockMode === 'progressive' && (!releaseRate || parseInt(releaseRate) <= 0 || parseInt(releaseRate) > 100)) {
-                showToast('Please enter a valid release rate (1-100%)', 'error');
-                return;
-            }
-            
-            try {
-                showLoading();
-                
-                // Convert amount to wei
-                const amountInWei = ethers.utils.parseEther(tipAmount);
-                
-                // Calculate unlock delay in seconds
-                let delayInSeconds;
-                switch (unlockDelayUnit) {
-                    case 'minutes':
-                        delayInSeconds = parseInt(unlockDelay) * 60;
-                        break;
-                    case 'hours':
-                        delayInSeconds = parseInt(unlockDelay) * 60 * 60;
-                        break;
-                    case 'days':
-                        delayInSeconds = parseInt(unlockDelay) * 24 * 60 * 60;
-                        break;
-                    default:
-                        delayInSeconds = parseInt(unlockDelay) * 24 * 60 * 60; // Default to days
-                }
-                
-                // Call the contract function
-                showToast('Sending tip to the blockchain...', 'info');
-                
-                const tx = await contract.sendTipLocked(
-                    recipientAddress,
-                    message,
-                    delayInSeconds,
-                    unlockMode === 'progressive',
-                    unlockMode === 'progressive' ? parseInt(releaseRate) : 0,
-                    { value: amountInWei }
-                );
-                
-                // Wait for transaction to be mined
-                showToast('Waiting for transaction confirmation...', 'info');
-                await tx.wait();
-                
-                // Update contract balance after sending tip
-                await updateContractBalance(contract.address);
-                
-                showToast('Tip sent successfully!', 'success');
-                
-                // Reset form
-                sendTipForm.reset();
-                progressiveOptions.classList.add('hidden');
-            } catch (error) {
-                console.error('Error sending tip:', error);
-                showToast('Failed to send tip: ' + error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-        
-        // Helper Functions
-        function shortenAddress(address) {
-            if (!address) return '-';
-            return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-        }
-        
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast px-4 py-3 rounded-lg shadow-lg flex items-center ${getToastColor(type)}`;
-            toast.innerHTML = `
-                <i class="fas ${getToastIcon(type)} mr-2"></i>
-                <span>${message}</span>
-            `;
-            
-            toastContainer.appendChild(toast);
-            
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                toast.remove();
-            }, 5000);
-        }
-        
-        function getToastColor(type) {
-            switch (type) {
-                case 'success': return 'bg-green-800 text-green-100';
-                case 'error': return 'bg-red-800 text-red-100';
-                case 'warning': return 'bg-yellow-800 text-yellow-100';
-                default: return 'bg-blue-800 text-blue-100';
-            }
-        }
-        
-        function getToastIcon(type) {
-            switch (type) {
-                case 'success': return 'fa-check-circle';
-                case 'error': return 'fa-case 'success': return 'fa-check-circle';
-                case 'error': return 'fa-exclamation-circle';
-                case 'warning': return 'fa-exclamation-triangle';
-                default: return 'fa-info-circle';
-            }
-        }
-        
-        function showLoading() {
-            loadingOverlay.classList.remove('hidden');
-        }
-        
-        function hideLoading() {
-            loadingOverlay.classList.add('hidden');
-        }
-    </script>
-</body>
-</html>
+                        connectWalletBtn.innerHTML = `<i class="fas fa-wallet
